@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Portal Kampus Fiktif - 24781043</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    h2, h3 { color: #333; }
+    .card { background: #fafafa; border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+    input, select, textarea, button { width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; box-sizing: border-box; }
+    button { background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .badge { background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>Portal Akademik Kampus Fiktif (NPM: 24781043)</h2>
+  <div id="app"></div>
+</div>
+
+<script>
+  // Data Sintetis Unik berbasis NPM 24781043
+  const state = {
+    user: null,
+    users: [
+      { id: "24781043", nama: "Ilham Kurniawan (Mahasiswa)", role: "mahasiswa", nilai: "A (88)" },
+      { id: "u-002", nama: "Budi Santoso (Mahasiswa)", role: "mahasiswa", nilai: "B (75)" },
+      { id: "d-001", nama: "Dr. Dosen Sugiarto", role: "dosen" },
+      { id: "a-001", nama: "Admin Sistem Kampus", role: "admin" }
+    ],
+    diskusi: [
+      { pengirim: "Budi Santoso", pesan: "Halo, apakah tugas jaringan sudah dikumpul?" }
+    ]
+  };
+
+  function render() {
+    const app = document.getElementById("app");
+    if (!state.user) {
+      app.innerHTML = `
+        <div class="card">
+          <h3>Login Portal</h3>
+          <label>Pilih Akun Simulasi:</label>
+          <select id="login-id">
+            ${state.users.map(u => `<option value="\${u.id}">${u.nama} (${u.role})</option>`).join("")}
+          </select>
+          <button onclick="login()">Masuk Portal</button>
+        </div>
+      `;
+      return;
+    }
+
+    let html = `
+      <div style="background: #e2e8f0; padding: 10px; margin-bottom: 15px; border-radius: 4px; display: flex; justify-content: space-between;">
+        <span>Login sebagai: <b>${state.user.nama}</b> <span class="badge">${state.user.role}</span></span>
+        <button style="width: auto; padding: 3px 10px; background: #dc3545;" onclick="logout()">Logout</button>
+      </div>
+    `;
+
+    if (state.user.role === "mahasiswa") {
+      html += `
+        <div class="card">
+          <h3>Halaman Mahasiswa: Lihat Nilai (Kerentanan IDOR)</h3>
+          <p>Masukkan ID Mahasiswa untuk melihat data nilai:</p>
+          <input type="text" id="target-id" value="${state.user.id}">
+          <button onclick="cekNilai()">Lihat Nilai</button>
+          <div id="hasil-nilai" style="margin-top: 10px; font-weight: bold;"></div>
+        </div>
+        <div class="card">
+          <h3>Upload Tugas Praktikum</h3>
+          <input type="file" id="tugas-file">
+          <button onclick="uploadTugas()">Unggah Tugas</button>
+        </div>
+      `;
+    } else if (state.user.role === "dosen") {
+      html += `
+        <div class="card">
+          <h3>Halaman Dosen: Beri Nilai Mahasiswa</h3>
+          <p>Daftar Mahasiswa:</p>
+          <ul>
+            ${state.users.filter(u => u.role === 'mahasiswa').map(m => `<li>\${m.nama} (ID: ${m.id}) - Nilai saat ini: <b>${m.nilai}</b></li>`).join("")}
+          </ul>
+          <label>ID Mahasiswa yang dinilai:</label>
+          <input type="text" id="mhs-id" placeholder="Masukkan ID (misal: 24781043)">
+          <label>Nilai Baru:</label>
+          <input type="text" id="nilai-baru" placeholder="Contoh: A (95)">
+          <button onclick="beriNilai()">Simpan Nilai</button>
+        </div>
+      `;
+    } else if (state.user.role === "admin") {
+      html += `
+        <div class="card">
+          <h3>Halaman Admin: Kelola Akun</h3>
+          <p>Total Akun Terdaftar: ${state.users.length}</p>
+          <ul>
+            ${state.users.map(u => `<li>${u.nama} - Role: <b>${u.role}</b></li>`).join("")}
+          </ul>
+        </div>
+      `;
+    }
+
+    // Fitur Diskusi Bersama (Rentan Stored XSS karena memakai innerHTML tanpa sanitasi)
+    html += `
+      <div class="card">
+        <h3>Forum Diskusi Kampus (Rentan Stored XSS)</h3>
+        <div style="background: white; border: 1px solid #ccc; padding: 10px; height: 120px; overflow-y: auto; margin-bottom: 10px;" id="box-diskusi">
+          ${state.diskusi.map(d => `<div><b>${d.pengirim}:</b>${d.pesan}</div>`).join("")}
+        </div>
+        <textarea id="pesan-diskusi" placeholder="Tulis pesan diskusi (bisa coba sisipkan tag HTML/JS)..."></textarea>
+        <button onclick="kirimPesan()">Kirim Diskusi</button>
+      </div>
+    `;
+
+    app.innerHTML = html;
+  }
+
+  function login() {
+    const id = document.getElementById("login-id").value;
+    state.user = state.users.find(u => u.id === id);
+    render();
+  }
+
+  function logout() {
+    state.user = null;
+    render();
+  }
+
+  // Simulasi IDOR: Mahasiswa bisa melihat nilai mahasiswa lain hanya dengan mengganti ID di input
+  function cekNilai() {
+    const targetId = document.getElementById("target-id").value;
+    const targetUser = state.users.find(u => u.id === targetId);
+    const box = document.getElementById("hasil-nilai");
+    if (targetUser && targetUser.role === "mahasiswa") {
+      box.innerHTML = `Nilai untuk ${targetUser.nama}: <span style="color: green;">${targetUser.nilai}</span>`;
+    } else {
+      box.innerHTML = `<span style="color: red;">Data nilai tidak ditemukan atau ID salah.</span>`;
+    }
+  }
+
+  function uploadTugas() {
+    alert("Tugas berhasil diunggah ke server fiktif!");
+  }
+
+  function beriNilai() {
+    const id = document.getElementById("mhs-id").value;
+    const nilaiBaru = document.getElementById("nilai-baru").value;
+    const mhs = state.users.find(u => u.id === id);
+    if (mhs) {
+      mhs.nilai = nilaiBaru;
+      alert("Nilai berhasil diperbarui!");
+      render();
+    } else {
+      alert("ID Mahasiswa tidak ditemukan!");
+    }
+  }
+
+  // Simulasi Stored XSS: Pesan disimpan mentah-mentah ke state/storage dan dirender ulang menggunakan innerHTML
+  function kirimPesan() {
+    const pesan = document.getElementById("pesan-diskusi").value;
+    if (!pesan) return;
+    state.diskusi.push({ pengirim: state.user.nama, pesan: pesan });
+    render();
+  }
+
+  render();
+</script>
+</body>
+</html>
